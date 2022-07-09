@@ -17,27 +17,31 @@ elif cat /etc/issue | grep -Eqi "debian"; then
     release="debian"
 elif cat /etc/issue | grep -Eqi "ubuntu"; then
     release="ubuntu"
-elif cat /etc/issue | grep -Eqi "centos|red hat|redhat"; then
+elif cat /etc/issue | grep -Eqi "centos|red hat|redhat|rocky|alma|oracle linux"; then
     release="centos"
 elif cat /proc/version | grep -Eqi "debian"; then
     release="debian"
 elif cat /proc/version | grep -Eqi "ubuntu"; then
     release="ubuntu"
-elif cat /proc/version | grep -Eqi "centos|red hat|redhat"; then
+elif cat /proc/version | grep -Eqi "centos|red hat|redhat|rocky|alma|oracle linux"; then
     release="centos"
 else
     echo -e "${red}未检测到系统版本，请联系脚本作者！${plain}\n" && exit 1
 fi
 
+os_version=""
+
 arch=$(arch)
 
 if [[ $arch == "x86_64" || $arch == "x64" || $arch == "amd64" ]]; then
-  arch="64"
+    arch="64"
 elif [[ $arch == "aarch64" || $arch == "arm64" ]]; then
-  arch="arm64-v8a"
+    arch="arm64-v8a"
+elif [[ $arch == "s390x" ]]; then
+    arch="s390x"
 else
-  arch="64"
-  echo -e "${red}检测架构失败，使用默认架构: ${arch}${plain}"
+    arch="64"
+    echo -e "${red}检测架构失败，使用默认架构: ${arch}${plain}"
 fi
 
 echo "架构: ${arch}"
@@ -46,8 +50,6 @@ if [ "$(getconf WORD_BIT)" != '32' ] && [ "$(getconf LONG_BIT)" != '64' ] ; then
     echo "本软件不支持 32 位系统(x86)，请使用 64 位系统(x86_64)，如果检测有误，请联系作者"
     exit 2
 fi
-
-os_version=""
 
 # os version
 if [[ -f /etc/os-release ]]; then
@@ -76,7 +78,7 @@ install_base() {
         yum install epel-release -y
         yum install wget curl unzip tar crontabs socat -y
     else
-        apt update -y
+        apt-get update -y
         apt install wget curl unzip tar cron socat -y
     fi
 }
@@ -100,27 +102,27 @@ install_acme() {
 
 install_XrayR() {
     if [[ -e /usr/local/XrayR/ ]]; then
-        rm /usr/local/XrayR/ -rf
+        rm -rf /usr/local/XrayR/
     fi
 
     mkdir /usr/local/XrayR/ -p
-	cd /usr/local/XrayR/
+    cd /usr/local/XrayR/
 
     if  [ $# == 0 ] ;then
-        last_version=$(curl -Ls "https://api.github.com/repos/XrayR-project/XrayR/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+        last_version=$(curl -Ls "https://api.github.com/repos/pig995/panels/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
         if [[ ! -n "$last_version" ]]; then
             echo -e "${red}检测 XrayR 版本失败，可能是超出 Github API 限制，请稍后再试，或手动指定 XrayR 版本安装${plain}"
             exit 1
         fi
         echo -e "检测到 XrayR 最新版本：${last_version}，开始安装"
-        wget -q -N --no-check-certificate -O /usr/local/XrayR/XrayR-linux.zip https://github.com/XrayR-project/XrayR/releases/download/${last_version}/XrayR-linux-${arch}.zip
+        wget -q -N --no-check-certificate -O /usr/local/XrayR/XrayR-linux.zip https://github.com/pig995/panels/releases/download/${last_version}/XrayR-linux-${arch}.zip
         if [[ $? -ne 0 ]]; then
             echo -e "${red}下载 XrayR 失败，请确保你的服务器能够下载 Github 的文件${plain}"
             exit 1
         fi
     else
         last_version=$1
-        url="https://github.com/XrayR-project/XrayR/releases/download/${last_version}/XrayR-linux-${arch}.zip"
+        url="https://github.com/pig995/panels/releases/download/${last_version}/XrayR-linux-${arch}.zip"
         echo -e "开始安装 XrayR v$1"
         wget -q -N --no-check-certificate -O /usr/local/XrayR/XrayR-linux.zip ${url}
         if [[ $? -ne 0 ]]; then
@@ -134,7 +136,7 @@ install_XrayR() {
     chmod +x XrayR
     mkdir /etc/XrayR/ -p
     rm /etc/systemd/system/XrayR.service -f
-    file="https://github.com/XrayR-project/XrayR-release/raw/master/XrayR.service"
+    file="https://github.com/pig995/panels/raw/master/XrayR.service"
     wget -q -N --no-check-certificate -O /etc/systemd/system/XrayR.service ${file}
     #cp -f XrayR.service /etc/systemd/system/
     systemctl daemon-reload
@@ -147,7 +149,7 @@ install_XrayR() {
     if [[ ! -f /etc/XrayR/config.yml ]]; then
         cp config.yml /etc/XrayR/
         echo -e ""
-        echo -e "全新安装，请先参看教程：https://github.com/XrayR-project/XrayR，配置必要的内容"
+        echo -e "全新安装，请先参看教程：https://github.com/pig995/XrayR，配置必要的内容"
     else
         systemctl start XrayR
         sleep 2
@@ -156,7 +158,7 @@ install_XrayR() {
         if [[ $? == 0 ]]; then
             echo -e "${green}XrayR 重启成功${plain}"
         else
-            echo -e "${red}XrayR 可能启动失败，请稍后使用 XrayR log 查看日志信息，若无法启动，则可能更改了配置格式，请前往 wiki 查看：https://github.com/XrayR-project/XrayR/wiki${plain}"
+            echo -e "${red}XrayR 可能启动失败，请稍后使用 XrayR log 查看日志信息，若无法启动，则可能更改了配置格式，请前往 wiki 查看：https://github.com/pig995/XrayR/wiki${plain}"
         fi
     fi
 
@@ -172,30 +174,32 @@ install_XrayR() {
     if [[ ! -f /etc/XrayR/custom_inbound.json ]]; then
         cp custom_inbound.json /etc/XrayR/
     fi
-    if [[ ! -f /etc/XrayR/ruelist ]]; then
-        cp ruelist /etc/XrayR/
+    if [[ ! -f /etc/XrayR/rulelist ]]; then
+        cp rulelist /etc/XrayR/
     fi
-    curl -o /usr/bin/XrayR -Ls https://raw.githubusercontent.com/XrayR-project/XrayR-release/master/XrayR.sh
+    curl -o /usr/bin/XrayR -Ls https://raw.githubusercontent.com/pig995/panels/master/XrayR.sh
     chmod +x /usr/bin/XrayR
     ln -s /usr/bin/XrayR /usr/bin/xrayr # 小写兼容
     chmod +x /usr/bin/xrayr
+    cd $cur_dir
+    rm -f install.sh
     echo -e ""
     echo "XrayR 管理脚本使用方法 (兼容使用xrayr执行，大小写不敏感): "
     echo "------------------------------------------"
-    echo "XrayR                    - 显示管理菜单 (功能更多)"
-    echo "XrayR start              - 启动 XrayR"
-    echo "XrayR stop               - 停止 XrayR"
-    echo "XrayR restart            - 重启 XrayR"
-    echo "XrayR status             - 查看 XrayR 状态"
-    echo "XrayR enable             - 设置 XrayR 开机自启"
-    echo "XrayR disable            - 取消 XrayR 开机自启"
-    echo "XrayR log                - 查看 XrayR 日志"
-    echo "XrayR update             - 更新 XrayR"
-    echo "XrayR update x.x.x       - 更新 XrayR 指定版本"
-    echo "XrayR config             - 显示配置文件内容"
-    echo "XrayR install            - 安装 XrayR"
-    echo "XrayR uninstall          - 卸载 XrayR"
-    echo "XrayR version            - 查看 XrayR 版本"
+    echo "XrayR              - 显示管理菜单 (功能更多)"
+    echo "XrayR start        - 启动 XrayR"
+    echo "XrayR stop         - 停止 XrayR"
+    echo "XrayR restart      - 重启 XrayR"
+    echo "XrayR status       - 查看 XrayR 状态"
+    echo "XrayR enable       - 设置 XrayR 开机自启"
+    echo "XrayR disable      - 取消 XrayR 开机自启"
+    echo "XrayR log          - 查看 XrayR 日志"
+    echo "XrayR generate     - 生成 XrayR 配置文件"
+    echo "XrayR update       - 更新 XrayR"
+    echo "XrayR update x.x.x - 更新 XrayR 指定版本"
+    echo "XrayR install      - 安装 XrayR"
+    echo "XrayR uninstall    - 卸载 XrayR"
+    echo "XrayR version      - 查看 XrayR 版本"
     echo "------------------------------------------"
 }
 
